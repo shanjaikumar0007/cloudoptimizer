@@ -163,6 +163,56 @@ def delete_resource(resource_id: str, db: Session = Depends(database.get_db)):
         raise HTTPException(status_code=404, detail=f"Resource '{resource_id}' not found")
     return {"message": f"Resource '{resource_id}' deleted successfully", "resource_id": resource_id}
 
+@app.post("/api/resources/{resource_id}/simulate")
+def simulate_resource(
+    resource_id: str,
+    body: Dict[str, Any],
+    db: Session = Depends(database.get_db)
+):
+    resource = crud.get_resource_by_id(db, resource_id)
+
+    if not resource:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Resource '{resource_id}' not found"
+        )
+
+    target_state = body.get("targetState", "nominal")
+
+    if target_state == "spike":
+        cpu, mem, storage, net = 92.0, 88.0, 82.0, 85.0
+    elif target_state == "idle":
+        cpu, mem, storage, net = 7.0, 10.0, 9.0, 5.0
+    elif target_state == "underutilized":
+        cpu, mem, storage, net = 25.0, 30.0, 20.0, 25.0
+    else:
+        cpu, mem, storage, net = 60.0, 55.0, 50.0, 52.0
+
+    updates = schemas.ResourceUpdate(
+        cpu_utilization=cpu,
+        memory_utilization=mem,
+        storage_utilization=storage,
+        network_utilization=net
+    )
+
+    updated = crud.update_resource(db, resource_id, updates)
+
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail="Resource not found"
+        )
+
+    return {
+        "resource_id": updated.resource_id,
+        "name": updated.name,
+        "cpu_utilization": updated.cpu_utilization,
+        "memory_utilization": updated.memory_utilization,
+        "storage_utilization": updated.storage_utilization,
+        "network_utilization": updated.network_utilization,
+        "recommendation": services.generate_recommendation(updated)
+    }
+
 @app.get("/api/recommendations")
 def get_recommendations(db: Session = Depends(database.get_db)):
     resources = crud.get_resources(db)
