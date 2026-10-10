@@ -11,7 +11,9 @@ if DATABASE_URL:
             "postgres://", "postgresql://", 1
         )
 
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL.replace(
+    "postgresql://", "postgresql+psycopg://", 1
+))
 else:
     # Local SQLite database for development
     SQLALCHEMY_DATABASE_URL = "sqlite:///./cloud_optimizer.db"
